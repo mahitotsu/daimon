@@ -49,3 +49,10 @@ Use `query_loki_logs` with LogQL directly, e.g.:
 ```
 
 Each matching line is a raw JSONL transcript entry (full message content, tool_use blocks, etc.) -- read and summarize it yourself; don't expect a pre-summarized answer from the query.
+
+Broad queries (wide time range, permissive regex like `error|failed`) can match many lines, and any single line can itself be huge -- a transcript line embeds the full content of that message, including large tool outputs. This can blow the response past the token budget and return nothing at all instead of a partial result. Always pair:
+
+- `limit` -- caps the number of lines returned.
+- `| line_format "{{ trunc 300 .Line }}"` -- caps the *length* of each line, which is what actually bounds total response size regardless of match count.
+
+If a query still errors as too large, narrow the time range or tighten the regex rather than retrying as-is.
