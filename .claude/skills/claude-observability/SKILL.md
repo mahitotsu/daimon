@@ -1,6 +1,6 @@
 ---
 name: claude-observability
-description: Answer questions about local Claude Code usage -- token/cost usage, tool-call frequency, and session content search -- using the local otel-lgtm stack (Prometheus + Loki) set up by this repo. Use when asked things like "how many tokens did I use today", "what tools have I been calling most", or "find the session where I discussed X".
+description: Answer questions about local Claude Code usage -- token/cost usage, tool-call frequency, and session content search -- using the local otel-lgtm stack (Prometheus + Loki) set up by this repo. Use when asked things like "how many tokens did I use today", "what tools have I been calling most", "find the session where I discussed X", "what was I working on / doing before", or "recall the last session / before the restart". Prefer this over `git log` for recalling past conversation content -- commits only capture what got committed, not what was discussed.
 ---
 
 # Claude Code observability
@@ -50,9 +50,16 @@ Use `query_loki_logs` with LogQL directly, e.g.:
 
 Each matching line is a raw JSONL transcript entry (full message content, tool_use blocks, etc.) -- read and summarize it yourself; don't expect a pre-summarized answer from the query.
 
-Broad queries (wide time range, permissive regex like `error|failed`) can match many lines, and any single line can itself be huge -- a transcript line embeds the full content of that message, including large tool outputs. This can blow the response past the token budget and return nothing at all instead of a partial result. Always pair:
+Broad queries (wide time range, permissive regex like `error|failed`) can match many lines, and any single line can itself be huge -- a transcript line embeds the full content of that message, including large tool outputs. This can blow the response past the token budget and return nothing at all instead of a partial result. `limit` alone does not fix this -- it caps line *count*, not size, and a single huge line can still blow the budget.
 
-- `limit` -- caps the number of lines returned.
-- `| line_format "{{ trunc 300 .Line }}"` -- caps the *length* of each line, which is what actually bounds total response size regardless of match count.
+Do **not** try `| line_format "{{ trunc 300 .Line }}"` to cap line length -- confirmed broken against the `grafana` MCP server's `query_loki_logs`: adding *any* `line_format` stage (even a no-op `{{ .Line }}`) makes the tool drop the `line` field from every result entry entirely, so you get timestamps/labels back with no content. This looks like the MCP tool failing to re-parse Loki's response shape once `line_format` changes it, not a LogQL problem -- a raw `curl` against Loki's HTTP API would presumably work fine.
 
-If a query still errors as too large, narrow the time range or tighten the regex rather than retrying as-is.
+Instead, cap size by excluding the huge entries with negative line filters, since giant lines are almost always `tool_use`/`tool_result` payloads:
+
+```
+{job="claude-code-sessions"} != "tool_result" != "toolUseResult" |~ "docker-compose"
+```
+
+This keeps short entries (user prompts, assistant text replies, `last-prompt`/`ai-title`/`mode` marker lines) and drops large tool I/O. Combine with a small `limit` (5-15) and narrow the time range. If a query still errors as too large, tighten the regex or filters further rather than retrying as-is -- don't fall back to reading the session's local `.jsonl` file directly with Bash/Read, since that bypasses the tool this skill exists to exercise.
+
+To scope a search to a specific prior session (e.g. "what was I doing before the last restart"), find that session's local file under `~/.claude/projects/<project>/*.jsonl` by mtime, then bound the Loki query with `filename="<path>"` plus `endRfc3339` set to the *next* session's start timestamp (get that via a `limit: 1, direction: forward` query on the current session's filename) so you don't pull in the session you're currently running in.
