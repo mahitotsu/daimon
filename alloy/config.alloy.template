@@ -1,0 +1,23 @@
+// Tails Claude Code's local session transcripts (~/.claude/projects/*/*.jsonl)
+// and forwards them to the local Loki instance so the MCP server can query
+// tool-call detail and session content that Claude Code's OTel export omits
+// by default. __HOME__ is substituted with the real home directory at
+// install time (Alloy config does not support shell-style expansion).
+
+local.file_match "claude_sessions" {
+  path_targets = [{
+    "__path__" = "__HOME__/.claude/projects/*/*.jsonl",
+    "job"      = "claude-code-sessions",
+  }]
+}
+
+loki.source.file "claude_sessions" {
+  targets    = local.file_match.claude_sessions.targets
+  forward_to = [loki.write.local.receiver]
+}
+
+loki.write "local" {
+  endpoint {
+    url = "http://localhost:3100/loki/api/v1/push"
+  }
+}

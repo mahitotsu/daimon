@@ -1,0 +1,10 @@
+[Unit]
+Description=Grafana Alloy (Claude Code session log shipper)
+After=network-online.target
+
+[Service]
+ExecStart=__ALLOY_BIN__ run __CONFIG_DIR__/config.alloy --storage.path=%h/.local/state/alloy
+Restart=on-failure
+
+[Install]
+WantedBy=default.target

@@ -1,0 +1,7 @@
+processors:
+  deltatocumulative:
+
+service:
+  pipelines:
+    metrics:
+      processors: [deltatocumulative, batch]

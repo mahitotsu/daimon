@@ -1,0 +1,32 @@
+services:
+  otel-lgtm:
+    image: grafana/otel-lgtm:latest
+    container_name: claude-otel-lgtm
+    restart: unless-stopped
+    environment:
+      # otel-lgtm suppresses Prometheus's own logs by default, which makes
+      # rejected/invalid metric writes (e.g. temporality mismatches) fail
+      # completely silently. Keep this on so that class of problem is
+      # visible in `docker logs` instead of just vanishing.
+      - ENABLE_LOGS_PROMETHEUS=true
+      # Merge in a small overlay (not a full config replacement) that adds
+      # a deltatocumulative processor to the metrics pipeline. Required
+      # because Claude Code exports Delta-temporality metrics, which
+      # Prometheus rejects outright ("invalid temporality and type
+      # combination for metric ..."). See README.md.
+      - OTELCOL_EXTRA_ARGS=--config=file:/etc/otelcol-metrics-overlay.yaml
+    ports:
+      - "127.0.0.1:3000:3000"   # Grafana UI
+      - "127.0.0.1:4317:4317"   # OTLP gRPC
+      - "127.0.0.1:4318:4318"   # OTLP HTTP
+      - "127.0.0.1:9090:9090"   # Prometheus
+      - "127.0.0.1:3100:3100"   # Loki
+      - "127.0.0.1:3200:3200"   # Tempo
+    volumes:
+      # Runtime data (Prometheus TSDB, Loki chunks, Grafana state) is
+      # generated/owned by the container (root inside it), not source --
+      # it does not belong inside the git repo. Kept under
+      # ~/.local/share instead, matching where Alloy's own state lives
+      # (~/.local/state/alloy).
+      - ${HOME}/.local/share/claude-observability/otel-lgtm-data:/data
+      - ./otelcol-metrics-overlay.yaml:/etc/otelcol-metrics-overlay.yaml:ro
