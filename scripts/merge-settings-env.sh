@@ -7,9 +7,15 @@ set -euo pipefail
 
 SETTINGS_FILE="${CLAUDE_SETTINGS_FILE:-$HOME/.claude/settings.json}"
 
-# Metrics-only: this project doesn't use Claude Code's OTel *logs* export
-# (tool-call/content detail comes from Alloy tailing ~/.claude/projects
-# JSONL instead, see alloy/), so no *_LOGS_EXPORTER key is set.
+# Logs are enabled too: Claude Code's OTel `claude_code.tool_result` /
+# `tool_decision` events carry tool_name/success/duration_ms unconditionally
+# (no OTEL_LOG_TOOL_DETAILS needed), and otel-lgtm forwards OTel logs to
+# Loki's native OTLP endpoint out of the box -- so tool-call frequency can be
+# aggregated with plain LogQL against {service_name="claude-code"}, no
+# custom parsing needed (see claude-observability skill). Full conversation
+# content and tool input/output bodies are NOT in these events (they're
+# truncated/absent by design -- see README), so Alloy still tails
+# ~/.claude/projects JSONL separately for full-text session search.
 #
 # Two name variants are required for full coverage:
 #   - plain OTEL_* is read by the standalone CLI.
@@ -28,9 +34,11 @@ SETTINGS_FILE="${CLAUDE_SETTINGS_FILE:-$HOME/.claude/settings.json}"
 DESIRED_ENV='{
   "CLAUDE_CODE_ENABLE_TELEMETRY": "1",
   "OTEL_METRICS_EXPORTER": "otlp",
+  "OTEL_LOGS_EXPORTER": "otlp",
   "OTEL_EXPORTER_OTLP_PROTOCOL": "grpc",
   "OTEL_EXPORTER_OTLP_ENDPOINT": "http://localhost:4317",
   "ANT_OTEL_METRICS_EXPORTER": "otlp",
+  "ANT_OTEL_LOGS_EXPORTER": "otlp",
   "ANT_OTEL_EXPORTER_OTLP_PROTOCOL": "grpc",
   "ANT_OTEL_EXPORTER_OTLP_ENDPOINT": "http://localhost:4317"
 }'

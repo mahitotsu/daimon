@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # One-shot, idempotent setup for the local Claude Code self-observability
-# stack: Claude Code OTel -> otel-lgtm (Docker) for metrics, Grafana Alloy
-# (native, systemd --user) tailing session JSONL -> Loki for tool/content
-# detail, and the official Grafana MCP server (+ a bundled skill) for
+# stack: Claude Code OTel -> otel-lgtm (Docker) for metrics and tool-call
+# aggregation (frequency/success/duration), Grafana Alloy (native,
+# systemd --user) tailing session JSONL -> Loki for full conversation/tool
+# content, and the official Grafana MCP server (+ a bundled skill) for
 # querying both in natural language.
 set -euo pipefail
 

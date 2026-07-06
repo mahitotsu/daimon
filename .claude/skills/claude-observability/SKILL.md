@@ -7,9 +7,10 @@ description: Answer questions about local Claude Code usage -- token/cost usage,
 
 Data sources (see repo README.md for how they're populated):
 - **Prometheus** (`claude_code_*` metrics) -- token usage and cost, exported by Claude Code's OTel integration.
-- **Loki** (`{job="claude-code-sessions"}`) -- full session transcripts, tailed from `~/.claude/projects/*/*.jsonl` by Grafana Alloy. This is the only source for tool-call arguments/output and full conversation content; Claude Code's OTel export does not include it.
+- **Loki, `{service_name="claude-code"}`** -- Claude Code's own OTel *log* events (`claude_code.tool_result`, `tool_decision`, `user_prompt`, `assistant_response`, ...), exported directly via OTLP and ingested through Loki's native OTLP endpoint. `tool_name`, `success`, `duration_ms`, `tool_input_size_bytes`, `tool_result_size_bytes` etc. are present as structured metadata on every `tool_result`/`tool_decision` event unconditionally (no extra env var needed) -- use this for tool-call frequency/duration, not the script below (there is no script anymore). `user_prompt`/`assistant_response` bodies stay `"<REDACTED>"` unless `OTEL_LOG_USER_PROMPTS`/`OTEL_LOG_ASSISTANT_RESPONSES` are set, and even then are capped at 60KB -- don't rely on this stream for full conversation content.
+- **Loki, `{job="claude-code-sessions"}`** -- full session transcripts, tailed from `~/.claude/projects/*/*.jsonl` by Grafana Alloy. This is the only source for untruncated tool-call input/output and full conversation content.
 
-Query both through the official `grafana` MCP server (`query_prometheus`, `query_loki_logs`, `list_prometheus_metric_names`, etc.) unless a task below says to use the bundled script instead.
+Query both through the official `grafana` MCP server (`query_prometheus`, `query_loki_logs`, `list_prometheus_metric_names`, etc.).
 
 ## Token / cost usage
 
@@ -31,14 +32,15 @@ Adjust the range (`[24h]`, `[7d]`, ...) to match what the user asked for. If the
 
 ## Tool-call frequency
 
-Run the bundled script rather than hand-rolling a Loki query -- it does the JSON parsing/aggregation that no generic Grafana/Loki tool does:
+Use `query_loki_logs` against the `{service_name="claude-code"}` stream with a LogQL metric query (`queryType: instant`), filtering to `tool_result` events via structured metadata and grouping by `tool_name`:
 
-```bash
-python3 .claude/skills/claude-observability/scripts/tool_usage.py --hours 24
-# or: --since 2026-07-05T00:00:00Z --until 2026-07-06T00:00:00Z --limit 500
+```
+sum by (tool_name) (count_over_time({service_name="claude-code"} | event_name="tool_result" [24h]))
 ```
 
-Returns `totalByTool` (counts per tool name) and `bySession` (counts per session ID). If it errors with `ResourceExhausted`, retry with a narrower range or a smaller `--limit`.
+Note the pipeline filter (`| event_name="tool_result"`) rather than a stream-selector label (`{event_name="tool_result"}`) -- `event_name` is structured metadata, not an indexed label, so it only matches inside `| ...` filters. Swap `count_over_time(...)` grouping/range as needed, e.g. add `, session_id` to `by (...)` to break down per session, or filter `| success="false"` for failures, or aggregate `avg by (tool_name) (avg_over_time(... | unwrap duration_ms [24h]))` for latency. Session frequency breakdowns work the same way with `by (session_id, tool_name)`.
+
+This replaced a bundled JSON-parsing script that used to scan JSONL transcripts for `tool_use` blocks -- the OTel `tool_result` event is one flat event per tool call (unlike a JSONL message, which can embed several `tool_use` blocks in one line), so plain LogQL aggregation is sufficient and no custom parsing is needed anymore.
 
 ## Session content search
 
