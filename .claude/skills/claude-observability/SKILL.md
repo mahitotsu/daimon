@@ -30,6 +30,14 @@ sum(increase(claude_code_cost_usage_USD_total[24h]))
 
 Adjust the range (`[24h]`, `[7d]`, ...) to match what the user asked for. If the range is very recent (metric only started existing minutes ago), `increase()` may need 2+ scrape samples to return a value -- an empty result doesn't necessarily mean zero usage.
 
+**Do not use `increase()` on `claude_code_session_count_total`** -- confirmed broken (2026-07-06, Claude Code v2.1.201): unlike the other three metrics, this one is emitted as a single fixed sample (value `1`) per unique `session_id` label, so each session gets its own flat, never-changing time series. `increase()` measures the delta *within* a series, which is always ~0 here regardless of how many sessions actually ran -- summing it across sessions still gives 0. To count sessions in a window, count distinct `session_id` series instead:
+
+```promql
+count(count by (session_id) (last_over_time(claude_code_session_count_total[24h])))
+```
+
+Also treat this metric as an approximate lower bound, not authoritative: it's emitted once at session start with no repeat, so it's more fragile than the continuously-re-exported counters (e.g. to a startup race with the OTLP exporter). Confirmed 2026-07-06: a session with heavy, clearly-active `claude_code_token_usage_tokens_total` data had zero `claude_code_session_count_total` samples anywhere in the 7-day retention window. If a session count looks suspiciously low, cross-check with `count(count by (session_id) (last_over_time(claude_code_token_usage_tokens_total[<range>])))`, which is more reliable since it's tied to a continuously-repeated counter.
+
 ## Tool-call frequency
 
 Use `query_loki_logs` against the `{service_name="claude-code"}` stream with a LogQL metric query (`queryType: instant`), filtering to `tool_result` events via structured metadata and grouping by `tool_name`:
