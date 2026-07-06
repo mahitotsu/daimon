@@ -12,6 +12,14 @@ Data sources (see repo README.md for how they're populated):
 
 Query both through the official `grafana` MCP server (`query_prometheus`, `query_loki_logs`, `list_prometheus_metric_names`, etc.).
 
+## Usage summary dashboard (token/cost/active-time/session-count/tool-frequency)
+
+For questions like "how much have I used today/this week", "what's my cost breakdown", "how productive was today" -- anything wanting the headline usage numbers rather than a specific narrow figure -- don't reconstruct all of it from scratch with a chain of `query_prometheus`/`query_loki_logs` calls. A bundled dashboard (`docker/grafana-dashboard-claude-code-usage.json`, uid `claude-code-usage-summary`) already has these panels wired up, adjustable to any time range via Grafana's picker. Confirmed 2026-07-06: answering this kind of question by hand took ~10 separate tool calls (one per metric/breakdown); that cost is the reason this dashboard exists.
+
+Preferred pattern: run at most one or two `query_prometheus`/`query_loki_logs` calls for the specific headline number(s) the user asked about (if any), then call `generate_deeplink` with `resourceType: "dashboard"`, `dashboardUid: "claude-code-usage-summary"`, and a `timeRange` matching what was asked (e.g. `{"from": "now-24h", "to": "now"}` for "today", `{"from": "now-7d", "to": "now"}` for "this week"), and hand the link back for the visual/detailed breakdown. Don't re-derive each panel's PromQL/LogQL by hand when a link to the already-built panel will do.
+
+This does not apply to tool-call frequency questions framed narratively ("what have I been doing", "where do I keep failing") or full-text session search -- those stay in-chat per the sections below, since they're about narrative/judgment, not headline numbers.
+
 ## Token / cost usage
 
 Known metric names (verify with `list_prometheus_metric_names` filtered on `claude_code` if a query returns nothing -- names can change with Claude Code versions):

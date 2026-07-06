@@ -30,3 +30,11 @@ services:
       # (~/.local/state/alloy).
       - ${HOME}/.local/share/claude-observability/otel-lgtm-data:/data
       - ./otelcol-metrics-overlay.yaml:/etc/otelcol-metrics-overlay.yaml:ro
+      # Bundled "usage summary" dashboard (token/cost/active-time/session
+      # count, tool-call frequency) backing the chat-answer + dashboard-link
+      # experience described in docs/prfaq.md. Added as a separate provider
+      # file alongside the image's built-in grafana-dashboards.yaml rather
+      # than replacing it, so the bundled RED/JVM sample dashboards keep
+      # working.
+      - ./grafana-dashboard-claude-code-usage.json:/otel-lgtm/claude-code-dashboard.json:ro
+      - ./grafana-dashboards-provisioning.yaml:/otel-lgtm/grafana/conf/provisioning/dashboards/claude-code-dashboards.yaml:ro
