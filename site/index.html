@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>daimon — Claude Code のためのローカル自己観測ツール</title>
+<meta name="description" content="Claude Code に何を任せ、それがどう働いたかを、自然言語で問いかけるだけで確認できるローカル完結ツール。">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%95%AF%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header class="nav">
+  <div class="wrap">
+    <a class="brand" href="#top">daimon</a>
+    <nav class="nav-links">
+      <a href="#solution">できること</a>
+      <a href="#quickstart">今すぐ始める</a>
+      <a href="#faq">FAQ</a>
+      <a href="https://github.com/mahitotsu/daimon">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<a id="top"></a>
+<section class="hero">
+  <div class="wrap">
+    <span class="eyebrow">Local &amp; single-user only</span>
+    <h1>Claude Code に何を任せ、<br>それがどう働いたかを、<span class="hl">聞くだけで</span>確認できる。</h1>
+    <p class="lead">
+      対話の記録、離席中や自律実行の実態、費やした時間とコスト、手直しをした場面、積み上げてきた実績——
+      これらすべてを、Claude Code 自身に自然言語で問いかけるだけで確認できるようにする、ローカル完結の自己観測ツールです。
+    </p>
+    <div class="cta-row">
+      <a class="btn btn-primary" href="#quickstart">今すぐ始める</a>
+      <a class="btn btn-secondary" href="https://github.com/mahitotsu/daimon">GitHub で見る</a>
+    </div>
+  </div>
+</section>
+
+<section id="problem">
+  <div class="wrap">
+    <p class="section-kicker">Problem</p>
+    <h2>使い込むほど、後から確認できなくなる</h2>
+    <p class="section-intro">
+      Claude Code を使い込み、任せる範囲がバックグラウンドタスクやスケジュール実行にまで広がるほど、
+      その振る舞いを後から検証する責任も大きくなります。しかし今のところこの検証は簡単ではありません。
+    </p>
+    <ul class="problem-list">
+      <li>別のセッションやバックグラウンドで動いていた Claude Code は、結局どこまで実現してくれていたのか。そのセッションを離れてしまうと、もう覗く術がない。</li>
+      <li>前にこの件を Claude Code にどう相談し、どう決着したのか。</li>
+      <li>Claude Code にどの作業を安心して任せられるようになったか、逆にまだ細かい指示が要る場面はどこか。</li>
+      <li>今月、Claude Code の利用にどれだけのコストがかかっているのか。</li>
+      <li>これまで Claude Code をどれだけ使い込んできたのか。</li>
+    </ul>
+  </div>
+</section>
+
+<section id="solution">
+  <div class="wrap">
+    <p class="section-kicker">Solution</p>
+    <h2>Claude Code に、日本語で聞くだけ</h2>
+    <p class="section-intro">
+      Claude Code 公式の OTel テレメトリを有効化してローカルの Prometheus / Loki / Grafana スタックへ流し込み、
+      会話全文を扱う専用の経路もあわせて用意。公式の Grafana MCP サーバーと専用 Skill を通じて、
+      実装の詳細を都度教える必要なく、自然言語で問い合わせられます。コストや実績のような値は、
+      ダッシュボードへのリンクを介して見やすく確認できます。
+    </p>
+    <div class="shot">
+      <img src="images/daimon_proto_20260707.png" alt="Claude Code に「今日はどれくらい作業した?よく使ったツールの呼び出し回数と所要時間も教えて」と尋ね、利用サマリーダッシュボードと自然言語の要約が返ってくる例" loading="lazy">
+    </div>
+    <p class="shot-caption">「今日はどれくらい作業した?」と聞くだけで、要約とダッシュボードが返ってくる(Claude Code v2.1.201 時点の実データ)。</p>
+  </div>
+</section>
+
+<section id="values">
+  <div class="wrap">
+    <p class="section-kicker">5 つの価値</p>
+    <h2>根は一つ、現れ方は五つ</h2>
+    <p class="section-intro">
+      「Claude Code に何を任せ、それがどう働いたかを、後から確認できること」——この一つの行為が向く先によって、
+      5 つの価値として現れます。
+    </p>
+    <div class="values-grid">
+      <div class="value-card">
+        <span class="num">1</span>
+        <h3>離席中・自律実行の振り返り</h3>
+        <p>バックグラウンドタスクや cron 実行は、離れると Claude Code 自身も文脈を覚えていません。翌朝の新しいセッションからでも「昨夜どこまでやってくれたか」を聞くだけで確認できます。</p>
+      </div>
+      <div class="value-card">
+        <span class="num">2</span>
+        <h3>過去の対話の想起</h3>
+        <p>「以前 X について相談した時どう決着したか」を、セッションをまたいで全文検索・要約させられます。加工されていない生の全文に立ち返れます。</p>
+      </div>
+      <div class="value-card">
+        <span class="num">3</span>
+        <h3>手直し・訂正傾向の可視化</h3>
+        <p>どの作業は安心して任せられるようになったか、逆にまだ細かい指示が要る場面はどこかを確認できます。次のプロジェクトの判断材料になります。</p>
+      </div>
+      <div class="value-card">
+        <span class="num">4</span>
+        <h3>コスト・トークン消費の実績把握</h3>
+        <p>「今日/今週/今月どれだけ使ったか」をチャット上の要約と、詳細を見るためのダッシュボードへのリンクで確認できます。</p>
+      </div>
+      <div class="value-card">
+        <span class="num">5</span>
+        <h3>積み重ねてきた実績の実感</h3>
+        <p>これまでのセッション数・トークン量・費やした時間の推移を確認できます。一人で進めてきた作業の積み重ねを、自分自身で実感するための価値です。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="testimonials">
+  <div class="wrap">
+    <p class="section-kicker">想定利用シーン</p>
+    <h2>こんな風に使われることを想定しています</h2>
+    <div class="testimonials">
+      <blockquote>
+        <p>「寝ている間に別セッションで走らせていたタスクを、翌朝あらためて別のセッションを開いてから『どこまでやってくれた?』と聞くのが楽しみになった」</p>
+        <cite>— 想定利用者(自律実行機能を使い始めた個人開発者)</cite>
+      </blockquote>
+      <blockquote>
+        <p>「先週相談してた設定変更、結局どっちに決めたんだっけ、と聞いたら該当のセッションを探し出して要約してくれた」</p>
+        <cite>— 想定利用者(複数プロジェクトを掛け持ちする個人開発者)</cite>
+      </blockquote>
+      <blockquote>
+        <p>「どの作業は安心して任せられるようになったか教えてもらって、次のプロジェクトでは最初から細かく指示すべき場面を先に見極められるようになった」</p>
+        <cite>— 想定利用者(自律実行機能を使い始めた個人開発者)</cite>
+      </blockquote>
+      <blockquote>
+        <p>「毎月のコストがどの作業に由来しているか聞いたら、要約と一緒にダッシュボードへのリンクが返ってきて、内訳をグラフで一目で確認できた」</p>
+        <cite>— 想定利用者(コストを気にしながら使う個人開発者)</cite>
+      </blockquote>
+      <blockquote>
+        <p>「一人で黙々と進めてきた作業だから誰も気づいてくれないけど、これまで何セッション、どれだけの時間使い込んできたか確認してみたら、地味に積み上げてきたんだなと実感できた」</p>
+        <cite>— 想定利用者(長期間同じプロジェクトを進めている個人開発者)</cite>
+      </blockquote>
+    </div>
+  </div>
+</section>
+
+<section id="quickstart">
+  <div class="wrap">
+    <p class="section-kicker">Quick Start</p>
+    <h2>今すぐ始めるには</h2>
+    <pre><code>git clone https://github.com/mahitotsu/daimon.git
+cd daimon
+./setup.sh</code></pre>
+    <p class="quickstart-note">Claude Code を再起動すれば、次回のセッションから自然言語での問い合わせが使えるようになります。詳細な前提条件やセットアップ手順は <a href="https://github.com/mahitotsu/daimon#readme">README</a> を参照してください。</p>
+  </div>
+</section>
+
+<section id="faq">
+  <div class="wrap">
+    <p class="section-kicker">FAQ</p>
+    <h2>よくある質問</h2>
+
+    <details>
+      <summary>誰のためのツールですか?</summary>
+      <div class="a">
+        <p>Claude Code を日常的に、複数のプロジェクト・複数セッションにわたって使い込んでいる個人開発者向けです。同じプロジェクトを長く続けている人、バックグラウンドタスクや cron・リモートトリガーなど見ていない間にも Claude Code が動く機能を使っている人ほど、価値が大きくなります。</p>
+        <p>ただし対象は<strong>自分が管理する端末</strong>で使う場合に限ります。会社貸与 PC や共有環境、顧客の機密情報を扱うプロジェクトでは、後述のプライバシー上の理由から推奨していません。暗号化・保存期間の上限・対象ディレクトリの除外といった緩和策を持たない設計を選んだ以上、個人が所有する環境での利用に絞っています。チーム/組織での利用統制、監査証跡、コンプライアンス対応も非スコープです。</p>
+      </div>
+    </details>
+
+    <details>
+      <summary>具体的にどんな悩みに応えますか?</summary>
+      <div class="a">
+        <p>根は一つです。「Claude Code に何を任せ、それがどう働いたかを、後から確認できること」。離席中・自律実行の振り返り、過去の対話の想起、手直し傾向の可視化は物語や判断材料としての性質が強いため、チャット上の自然言語での回答が中心になります。コスト・トークン消費の把握と積み重ねてきた実績の実感は、チャット上の要約と Grafana ダッシュボードへのリンクを組み合わせた体験になります。</p>
+      </div>
+    </details>
+
+    <details>
+      <summary>何ができないのですか?(非スコープ)</summary>
+      <div class="a">
+        <ul>
+          <li>チーム/複数ユーザーでの利用統制、利用状況の横断比較</li>
+          <li>クラウドへの転送・長期保管・改ざん検知</li>
+          <li>Kubernetes 等でのオーケストレーション、強制的なテレメトリ有効化</li>
+          <li>Claude Code 自体の応答品質・振る舞いの変更(daimon は観測するだけ)</li>
+        </ul>
+      </div>
+    </details>
+
+    <details>
+      <summary>導入に何が必要ですか?</summary>
+      <div class="a">
+        <p>Linux(WSL2 含む)で <code>systemd --user</code> が使え、かつ Docker が動く環境が必要です。詳細な前提条件は README の「対象環境」を参照してください。</p>
+      </div>
+    </details>
+
+    <details>
+      <summary>プライバシー・セキュリティ上の注意点は?</summary>
+      <div class="a">
+        <p><strong>ここが最も重要な注意点です。</strong> Claude Code の公式テレメトリは、ユーザープロンプトやツールの引数・実行結果本体が外部に出ないよう既定でガードされています。daimon はセッションの JSONL ファイル(会話全文・ツールの入出力を含む)を直接ローカルの Loki に再保存する経路を持っており、<strong>この公式ガードを実質バイパスする設計</strong>です。暗号化はされず、保存期間も無制限(手動削除のみ)です。</p>
+        <p>単一ユーザーが自分のローカル環境で使う前提であれば実害は限定的ですが、会社貸与 PC や共有環境、顧客データ・機密情報を扱うプロジェクトでは導入を推奨しません。有効化・無効化は <code>~/.claude/settings.json</code> の <code>env</code> でいつでも切り替えられます。</p>
+      </div>
+    </details>
+
+    <details>
+      <summary>導入コストや運用の手間は?</summary>
+      <div class="a">
+        <p><code>./setup.sh</code> を実行してから Claude Code を再起動するだけです。再実行しても安全(冪等)です。ただし <code>systemd --user</code> はログインセッションが途切れると停止するため、バックグラウンドでも収集を継続したい場合は別途 <code>loginctl enable-linger</code> の設定が必要です(root 権限が要るため自動化していません)。</p>
+      </div>
+    </details>
+
+    <details>
+      <summary>会話全文はどこまで正確に検索できますか?</summary>
+      <div class="a">
+        <p>セッションの JSONL tail 経由の全文検索は元データをそのまま保持しているためトランケートなしで検索できます。一方、OTel 経由のログは集計用途向けで、内容はサイズ上限つきでトランケートされます。どちらを使うべきかは Skill が自動的に判断します。</p>
+      </div>
+    </details>
+
+    <details>
+      <summary>トークン/コストの数値はどのくらい信頼できますか?</summary>
+      <div class="a">
+        <p>Claude Code 公式の OTel メトリクスをそのまま使っているため、公式 CLI が把握している値と一致します。ただしメトリクス名や属性はバージョンによって変わりうるため、応答時に「このバージョンで確認した」という前提を Skill 側で明示するようにしています。</p>
+      </div>
+    </details>
+
+    <details>
+      <summary>まだ検証できていないことは何ですか?</summary>
+      <div class="a">
+        <p>実際に想定利用シナリオが期待通り動くかを検証中です。特に、離席中の振り返り・過去の対話の想起・手直し傾向の把握について、実装を都度教えてその場で答えさせる方法と比べて daimon 経由の回答がどれだけ正確・高速かは、今のところ未検証です。</p>
+      </div>
+    </details>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <span>© daimon — MIT License</span>
+    <span>
+      <a href="https://github.com/mahitotsu/daimon">GitHub</a>
+      · <a href="https://github.com/mahitotsu/daimon#readme">README</a>
+      · <a href="https://github.com/mahitotsu/daimon/blob/main/LICENSE">LICENSE</a>
+    </span>
+  </div>
+</footer>
+
+</body>
+</html>
