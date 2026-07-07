@@ -21,7 +21,7 @@
       "id": 1,
       "type": "stat",
       "title": "トークン消費(選択期間の合計)",
-      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 1 },
+      "gridPos": { "h": 3, "w": 6, "x": 0, "y": 1 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
       "targets": [
@@ -38,7 +38,7 @@
       "id": 2,
       "type": "stat",
       "title": "コスト(選択期間の合計、USD)",
-      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 1 },
+      "gridPos": { "h": 3, "w": 6, "x": 6, "y": 1 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": { "defaults": { "unit": "currencyUSD", "decimals": 2 }, "overrides": [] },
       "targets": [
@@ -55,7 +55,7 @@
       "id": 3,
       "type": "stat",
       "title": "アクティブ時間(選択期間の合計)",
-      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 1 },
+      "gridPos": { "h": 3, "w": 6, "x": 12, "y": 1 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
       "targets": [
@@ -73,7 +73,7 @@
       "type": "stat",
       "title": "セッション数(選択期間内に開始)",
       "description": "increase() ではなく session_id の種類数で数える。claude_code_session_count_total ではなく token_usage_tokens_total ベースで数える(session_count_total は約10%程度過小カウントすることを確認済み。理由・実測値は docs/scenarios.md シナリオ5、.claude/skills/claude-observability/SKILL.md 参照)。",
-      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 1 },
+      "gridPos": { "h": 3, "w": 6, "x": 18, "y": 1 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
       "targets": [
@@ -90,7 +90,7 @@
       "id": 5,
       "type": "timeseries",
       "title": "トークン消費レート(モデル別、トークン/秒)",
-      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 5 },
+      "gridPos": { "h": 5, "w": 24, "x": 0, "y": 4 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
       "targets": [
@@ -108,7 +108,7 @@
       "id": 6,
       "type": "bargauge",
       "title": "トークン消費の内訳(モデル別、選択期間の合計)",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 13 },
+      "gridPos": { "h": 4, "w": 12, "x": 0, "y": 9 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
       "targets": [
@@ -126,7 +126,7 @@
       "id": 7,
       "type": "bargauge",
       "title": "コストの内訳(モデル別、選択期間の合計、USD)",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 13 },
+      "gridPos": { "h": 4, "w": 12, "x": 12, "y": 9 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": { "defaults": { "unit": "currencyUSD", "decimals": 2 }, "overrides": [] },
       "targets": [
@@ -144,7 +144,7 @@
       "id": 21,
       "type": "row",
       "title": "ツール利用状況 (Loki)",
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 21 },
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 13 },
       "collapsed": false,
       "panels": []
     },
@@ -152,7 +152,7 @@
       "id": 8,
       "type": "bargauge",
       "title": "ツール呼び出し頻度(選択期間の合計)",
-      "gridPos": { "h": 8, "w": 16, "x": 0, "y": 22 },
+      "gridPos": { "h": 4, "w": 16, "x": 0, "y": 14 },
       "datasource": { "type": "loki", "uid": "loki" },
       "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
       "targets": [
@@ -170,7 +170,7 @@
       "id": 9,
       "type": "stat",
       "title": "ツール呼び出し失敗率(選択期間)",
-      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 22 },
+      "gridPos": { "h": 4, "w": 8, "x": 16, "y": 14 },
       "datasource": { "type": "loki", "uid": "loki" },
       "fieldConfig": { "defaults": { "unit": "percentunit", "decimals": 1 }, "overrides": [] },
       "targets": [
@@ -187,7 +187,7 @@
       "id": 22,
       "type": "row",
       "title": "トレース (Tempo、ベータ)",
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 30 },
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 18 },
       "collapsed": false,
       "panels": []
     },
@@ -196,7 +196,7 @@
       "type": "bargauge",
       "title": "ツール所要時間 p95(ツール別、直近3時間固定)",
       "description": "Tempo の TraceQL metrics クエリは3時間を超える時間範囲を受け付けないため、このパネルはダッシュボード上部の時間範囲ピッカーに関わらず常に直近3時間で集計する(パネル右上の時計アイコンが範囲上書きの印)。詳細・実測値は .claude/skills/claude-observability/SKILL.md の「Tool-call frequency and duration」節、docs/scenarios.md を参照。",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 31 },
+      "gridPos": { "h": 5, "w": 12, "x": 0, "y": 19 },
       "timeFrom": "3h",
       "datasource": { "type": "tempo", "uid": "tempo" },
       "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
@@ -216,7 +216,7 @@
       "type": "table",
       "title": "直近のインタラクション(Tempo トレース一覧)",
       "description": "claude_code.interaction スパン(ターン単位)の一覧。トレース ID をクリックすると Tempo のトレース詳細(waterfall)を開ける。検索系クエリのため TraceQL metrics のような3時間上限はなく、上部の時間範囲ピッカーに従う。",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 31 },
+      "gridPos": { "h": 5, "w": 12, "x": 12, "y": 19 },
       "datasource": { "type": "tempo", "uid": "tempo" },
       "fieldConfig": { "defaults": {}, "overrides": [] },
       "targets": [
