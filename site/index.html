@@ -81,32 +81,63 @@
       「Claude Code に何を任せ、それがどう働いたかを、後から確認できること」——この一つの行為が向く先によって、
       5 つの価値として現れます。
     </p>
+    <p class="section-note">カードをクリックすると、実際に問いかけて得られた応答のサンプルが開きます。</p>
     <div class="values-grid">
-      <div class="value-card">
-        <span class="num">1</span>
-        <h3>離席中・自律実行の振り返り</h3>
-        <p>バックグラウンドタスクや cron 実行は、離れると Claude Code 自身も文脈を覚えていません。翌朝の新しいセッションからでも「昨夜どこまでやってくれたか」を聞くだけで確認できます。</p>
-      </div>
-      <div class="value-card">
-        <span class="num">2</span>
-        <h3>過去の対話の想起</h3>
-        <p>「以前 X について相談した時どう決着したか」を、セッションをまたいで全文検索・要約させられます。加工されていない生の全文に立ち返れます。</p>
-      </div>
-      <div class="value-card">
-        <span class="num">3</span>
-        <h3>手直し・訂正傾向の可視化</h3>
-        <p>どの作業は安心して任せられるようになったか、逆にまだ細かい指示が要る場面はどこかを確認できます。次のプロジェクトの判断材料になります。</p>
-      </div>
-      <div class="value-card">
-        <span class="num">4</span>
-        <h3>コスト・トークン消費の実績把握</h3>
-        <p>「今日/今週/今月どれだけ使ったか」をチャット上の要約と、詳細を見るためのダッシュボードへのリンクで確認できます。</p>
-      </div>
-      <div class="value-card">
-        <span class="num">5</span>
-        <h3>積み重ねてきた実績の実感</h3>
-        <p>これまでのセッション数・トークン量・費やした時間の推移を確認できます。一人で進めてきた作業の積み重ねを、自分自身で実感するための価値です。</p>
-      </div>
+      <details class="value-card">
+        <summary><span class="value-card-head"><span class="num">1</span><h3>離席中・自律実行の振り返り</h3></span></summary>
+        <div class="value-card-body">
+          <p>バックグラウンドタスクや cron 実行は、離れると Claude Code 自身も文脈を覚えていません。翌朝の新しいセッションからでも「昨夜どこまでやってくれたか」を聞くだけで確認できます。</p>
+          <div class="sample">
+            <p class="sample-q"><span class="sample-label">問い</span>さっき裏で走らせてたタスク、結局何をやってくれた?何か気になることはあった?</p>
+            <p class="sample-a"><span class="sample-label">応答</span>ドキュメント内の相互参照リンクを16箇所チェックし、壊れているものはありませんでした。作業中に見えた文字列を一瞬プロンプトインジェクションかと疑いましたが、実データを確認したところファイル自体には何も混入しておらず、ハーネスの通知を誤認しただけと判断しています。</p>
+          </div>
+          <p class="sample-meta">2026-07-08 の実際の問いかけより(Claude Code v2.1.202)</p>
+        </div>
+      </details>
+      <details class="value-card">
+        <summary><span class="value-card-head"><span class="num">2</span><h3>過去の対話の想起</h3></span></summary>
+        <div class="value-card-body">
+          <p>「以前 X について相談した時どう決着したか」を、セッションをまたいで全文検索・要約させられます。加工されていない生の全文に立ち返れます。</p>
+          <div class="sample">
+            <p class="sample-q"><span class="sample-label">問い</span>前にツール呼び出し頻度の集計方法をどうするか相談した時、結局何に決めたんだっけ?</p>
+            <p class="sample-a"><span class="sample-label">応答</span>チャット側の頻度・所要時間分析は Loki の手組みクエリから Tempo TraceQL に移行しましたが、ダッシュボードのパネルはあえて Loki のまま残しています。TraceQL の集計クエリには3時間という時間範囲の上限があり、ダッシュボードの自由な期間指定と相性が悪かったためです。</p>
+          </div>
+          <p class="sample-meta">2026-07-08 の実際の問いかけより(Claude Code v2.1.202)</p>
+        </div>
+      </details>
+      <details class="value-card">
+        <summary><span class="value-card-head"><span class="num">3</span><h3>手直し・訂正傾向の可視化</h3></span></summary>
+        <div class="value-card-body">
+          <p>どの作業は安心して任せられるようになったか、逆にまだ細かい指示が要る場面はどこかを確認できます。次のプロジェクトの判断材料になります。</p>
+          <div class="sample">
+            <p class="sample-q"><span class="sample-label">問い</span>これまでの確認の質問、私はどれくらい提案通りに答えてる?</p>
+            <p class="sample-a"><span class="sample-label">応答</span>直近15日間の12回のうち、提案をそのまま採用したのは6回、他の選択肢を選んだのが2回、用意した選択肢のどれとも違う自由回答が4回(33%)でした。そのうち2回は提案の妥当性そのものへの異議でした。</p>
+          </div>
+          <p class="sample-meta">2026-07-08 の実際の問いかけより(Claude Code v2.1.202)</p>
+        </div>
+      </details>
+      <details class="value-card">
+        <summary><span class="value-card-head"><span class="num">4</span><h3>コスト・トークン消費の実績把握</h3></span></summary>
+        <div class="value-card-body">
+          <p>「今日/今週/今月どれだけ使ったか」をチャット上の要約と、詳細を見るためのダッシュボードへのリンクで確認できます。</p>
+          <div class="sample">
+            <p class="sample-q"><span class="sample-label">問い</span>今日のコストはどれくらい?</p>
+            <p class="sample-a"><span class="sample-label">応答</span>ここまでで $1.15 です(ほぼ claude-sonnet-5 の利用分)。内訳はダッシュボードのリンクからご確認いただけます。</p>
+          </div>
+          <p class="sample-meta">2026-07-08 の実際の問いかけより(Claude Code v2.1.202)</p>
+        </div>
+      </details>
+      <details class="value-card">
+        <summary><span class="value-card-head"><span class="num">5</span><h3>積み重ねてきた実績の実感</h3></span></summary>
+        <div class="value-card-body">
+          <p>これまでのセッション数・トークン量・費やした時間の推移を確認できます。一人で進めてきた作業の積み重ねを、自分自身で実感するための価値です。</p>
+          <div class="sample">
+            <p class="sample-q"><span class="sample-label">問い</span>これまで何セッション、どれくらい使い込んできた?</p>
+            <p class="sample-a"><span class="sample-label">応答</span>直近15日間で23セッション、累計アクティブ時間は約2時間41分でした。</p>
+          </div>
+          <p class="sample-meta">2026-07-08 の実際の問いかけより(Claude Code v2.1.202)</p>
+        </div>
+      </details>
     </div>
   </div>
 </section>

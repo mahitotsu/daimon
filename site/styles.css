@@ -103,15 +103,30 @@ ul.problem-list li::before{content:"— ";color:var(--accent);font-weight:700;}
 .shot img{display:block;width:100%;height:auto;}
 .shot-caption{text-align:center;font-size:.85rem;color:var(--text-dim);margin-top:10px;}
 
-.values-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;}
-.value-card{background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:20px;}
+.section-note{color:var(--text-dim);font-size:.85rem;margin:-18px 0 20px;}
+.values-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;align-items:start;}
+.value-card{margin-bottom:0;padding:18px 20px;}
+.value-card summary{padding:10px 0;}
+.value-card-head{display:flex;align-items:center;gap:10px;}
 .value-card .num{
-  display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;
+  display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;flex-shrink:0;
   border-radius:50%;background:color-mix(in srgb, var(--accent) 18%, transparent);
-  color:var(--accent-strong);font-size:.8rem;font-weight:700;margin-bottom:10px;
+  color:var(--accent-strong);font-size:.8rem;font-weight:700;
 }
-.value-card h3{margin:0 0 8px;font-size:1.02rem;}
-.value-card p{margin:0;color:var(--text-dim);font-size:.92rem;}
+.value-card-head h3{margin:0;font-size:1.02rem;}
+.value-card-body{padding-top:12px;}
+.value-card-body p{margin:0;color:var(--text-dim);font-size:.92rem;}
+.sample{
+  background:var(--code-bg);border:1px solid var(--border);border-radius:8px;
+  padding:14px 16px;margin-top:14px;display:grid;gap:10px;
+}
+.sample p{margin:0;font-size:.88rem;color:var(--text);}
+.sample-label{
+  display:block;font-size:.68rem;font-weight:700;letter-spacing:.06em;
+  color:var(--text-dim);margin-bottom:3px;
+}
+.sample-q .sample-label{color:var(--accent-strong);}
+.sample-meta{margin:10px 0 0 !important;font-size:.78rem;color:var(--text-dim);}
 
 .testimonials{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;}
 blockquote{
