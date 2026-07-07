@@ -1,6 +1,6 @@
 ---
 name: claude-observability
-description: Answer questions about local Claude Code usage -- token/cost usage, tool-call frequency/duration, turn/trace structure, and session content search -- using the local otel-lgtm stack (Prometheus + Loki + Tempo) set up by this repo. Use when asked things like "how many tokens did I use today", "what tools have I been calling most", "why was that turn slow", "find the session where I discussed X", "what was I working on / doing before", or "recall the last session / before the restart". Prefer this over `git log` for recalling past conversation content -- commits only capture what got committed, not what was discussed.
+description: Answer questions about local Claude Code usage -- token/cost usage, tool-call frequency/duration, turn/trace structure, session content search, and correction/rework tendency -- using the local otel-lgtm stack (Prometheus + Loki + Tempo) set up by this repo. Use when asked things like "how many tokens did I use today", "what tools have I been calling most", "why was that turn slow", "find the session where I discussed X", "what was I working on / doing before", "recall the last session / before the restart", or "where do I still need to correct/redirect Claude vs. where can I trust it". Prefer this over `git log` for recalling past conversation content -- commits only capture what got committed, not what was discussed.
 ---
 
 # Claude Code observability
@@ -91,6 +91,25 @@ For questions about a specific turn's internal structure -- why it was slow, whe
 A `tempo_traceql-search` result can show `rootServiceName: "<root span not yet received>"` for a trace. Confirmed 2026-07-07: this is normal for a trace whose `claude_code.interaction` root span hasn't closed yet (it only closes when the turn finishes), not a data-loss bug -- it's almost always the turn currently in progress. If it persists for a turn that has clearly finished, that's the actual anomaly worth investigating (check Loki `tool_result` events for the same window as a cross-check before assuming Tempo dropped data).
 
 Known gap (per README.md, tracking [anthropics/claude-code#53954](https://github.com/anthropics/claude-code/issues/53954), closed as not planned): under the Agent SDK's `query()` / ACP streaming-json path, `claude_code.interaction`/`tool` spans are missing entirely and only `llm_request` spans show up. Not expected to affect normal CLI/VS Code usage, but worth ruling out if a session's trace looks unusually sparse.
+
+## Correction-tendency signal: AskUserQuestion outcomes
+
+For "which kinds of work can I trust Claude with vs. where do I still need to correct it" -- `tool_decision=reject` does not work as this signal: confirmed 2026-07-08 (scenario 3 in `docs/scenarios.md`) only 2 of 678 `tool_decision` events over 15d were `reject`, because this repo runs mostly under `acceptEdits`, where individual tool calls never reach an explicit approve/deny prompt at all.
+
+Instead, use `AskUserQuestion` outcomes -- a much higher-precision signal already sitting in the session JSONL with no extra instrumentation. Each answered `AskUserQuestion` call produces a `user`-role JSONL line whose `toolUseResult` field carries both the original `questions[].options[].label` (including a `(推奨)`/`(Recommended)` marker on whichever option was suggested) and the actual `answers`, on the *same* line -- no cross-referencing a separate `tool_use`/`tool_result` pair by ID needed. Find candidate lines with:
+
+```
+{job="claude-code-sessions", filename=~".*-<project>/.*"} |~ "toolUseResult" |~ "\"answers\""
+```
+
+Parse each matched line's JSON and classify per question:
+- **recommended_accepted** -- `answers[question]` equals the option label containing `(推奨)`/`(Recommended)`.
+- **alternative_selected** -- matches one of the other given option labels (for `multiSelect`, all selected items are given labels).
+- **other_custom** -- doesn't match any given option label. The strongest signal: the user rejected every framing Claude proposed and wrote a free-form answer instead.
+
+Confirmed 2026-07-08 on this repo's own history (12 `AskUserQuestion` calls over 15 days): 6 `recommended_accepted`, 2 `alternative_selected`, 1 partial-match `multiSelect`, 4 `other_custom` (33%). Two of the four `other_custom` cases were the user directly challenging the *recommendation itself* ("which one are you actually telling me to do?", pointing out a benefit the recommendation's reasoning had missed) rather than just picking a different listed option -- about as explicit a "your judgment needs correction here" signal as this tool surfaces.
+
+Caveat: this only covers moments where Claude asked a structured question via `AskUserQuestion` -- it says nothing about corrections happening through silent edits/reverts with no question involved, so it undercounts "need for correction" overall. Within its coverage, though, it's high-precision (a deliberate, structured override) rather than an inferred sentiment, and needs no fragile keyword/sentiment heuristics against natural-language text (which was considered and rejected as the broader alternative -- see scenario 3 in `docs/scenarios.md`). Sample sizes will be small for most projects; treat any single-digit-N breakdown (e.g. by topic) as anecdotal, not statistically meaningful.
 
 ## Session content search
 
