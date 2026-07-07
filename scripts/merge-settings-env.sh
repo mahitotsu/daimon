@@ -31,14 +31,33 @@ SETTINGS_FILE="${CLAUDE_SETTINGS_FILE:-$HOME/.claude/settings.json}"
 # from this side for that entrypoint. Instead, docker/otelcol-metrics-overlay.yaml
 # converts Delta to Cumulative in the collector, which works regardless of
 # what the sender does.
+#
+# Traces (beta): CLAUDE_CODE_ENHANCED_TELEMETRY_BETA turns on Claude Code's
+# span tracing (claude_code.interaction -> llm_request / tool ->
+# tool.execution, tool.blocked_on_user), which feeds the otherwise-unused
+# Tempo instance already bundled in otel-lgtm. Unlike the temporality knob
+# above, this flag itself has no ANT_-prefixed counterpart -- confirmed via
+# `strings` on native-binary/claude, where it appears unprefixed just like
+# CLAUDE_CODE_ENABLE_TELEMETRY -- so one setting covers both entrypoints.
+# OTEL_TRACES_EXPORTER does need both variants, same reasoning as the
+# metrics/logs exporters above (ANT_OTEL_TRACES_EXPORTER also confirmed
+# present in the VS Code extension's bundled binary). No signal-specific
+# OTEL_EXPORTER_OTLP_TRACES_* override is set: the generic OTLP
+# protocol/endpoint above are picked up for traces too (verified via a live
+# `claude -p` smoke test that landed a full span tree in Tempo). This is a
+# beta feature with no stability guarantee -- see README for the
+# verification date/version.
 DESIRED_ENV='{
   "CLAUDE_CODE_ENABLE_TELEMETRY": "1",
+  "CLAUDE_CODE_ENHANCED_TELEMETRY_BETA": "1",
   "OTEL_METRICS_EXPORTER": "otlp",
   "OTEL_LOGS_EXPORTER": "otlp",
+  "OTEL_TRACES_EXPORTER": "otlp",
   "OTEL_EXPORTER_OTLP_PROTOCOL": "grpc",
   "OTEL_EXPORTER_OTLP_ENDPOINT": "http://localhost:4317",
   "ANT_OTEL_METRICS_EXPORTER": "otlp",
   "ANT_OTEL_LOGS_EXPORTER": "otlp",
+  "ANT_OTEL_TRACES_EXPORTER": "otlp",
   "ANT_OTEL_EXPORTER_OTLP_PROTOCOL": "grpc",
   "ANT_OTEL_EXPORTER_OTLP_ENDPOINT": "http://localhost:4317"
 }'
