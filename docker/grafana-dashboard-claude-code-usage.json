@@ -193,13 +193,17 @@
     },
     {
       "id": 10,
-      "type": "bargauge",
+      "type": "table",
       "title": "ツール所要時間 p95(ツール別、直近3時間固定)",
-      "description": "Tempo の TraceQL metrics クエリは3時間を超える時間範囲を受け付けないため、このパネルはダッシュボード上部の時間範囲ピッカーに関わらず常に直近3時間で集計する(パネル右上の時計アイコンが範囲上書きの印)。詳細・実測値は .claude/skills/claude-observability/SKILL.md の「Tool-call frequency and duration」節、docs/scenarios.md を参照。",
+      "description": "Tempo の TraceQL metrics クエリは3時間を超える時間範囲を受け付けないため、このパネルはダッシュボード上部の時間範囲ピッカーに関わらず常に直近3時間で集計する(パネル右上の時計アイコンが範囲上書きの印)。table タイプなのは、この形(ラベルの組み合わせごとに1値ずつ、別々のフレーム)のレスポンスに対して Tempo データソース自身が preferredVisualisationType: table を返すため(bargauge では正しく表示されないことを確認済み)。詳細・実測値は .claude/skills/claude-observability/SKILL.md の「Tool-call frequency and duration」節、docs/scenarios.md を参照。",
       "gridPos": { "h": 5, "w": 12, "x": 0, "y": 19 },
       "timeFrom": "3h",
       "datasource": { "type": "tempo", "uid": "tempo" },
       "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
+      "transformations": [
+        { "id": "labelsToFields", "options": {} },
+        { "id": "merge", "options": {} }
+      ],
       "targets": [
         {
           "refId": "A",
