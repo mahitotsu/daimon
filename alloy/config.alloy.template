@@ -1,12 +1,18 @@
-// Tails Claude Code's local session transcripts (~/.claude/projects/*/*.jsonl)
+// Tails Claude Code's local session transcripts (~/.claude/projects/**/*.jsonl)
 // and forwards them to the local Loki instance so the MCP server can query
 // tool-call detail and session content that Claude Code's OTel export omits
 // by default. __HOME__ is substituted with the real home directory at
 // install time (Alloy config does not support shell-style expansion).
+//
+// The recursive "**" (not "*/*") is required: subagent transcripts spawned
+// via the Agent/Task tool live one level deeper, at
+// <project>/<sessionId>/subagents/agent-<taskId>.jsonl, not directly under
+// <project>/. A non-recursive glob silently misses all subagent/background
+// task content -- confirmed 2026-07-08 (scenario 1 in docs/scenarios.md).
 
 local.file_match "claude_sessions" {
   path_targets = [{
-    "__path__" = "__HOME__/.claude/projects/*/*.jsonl",
+    "__path__" = "__HOME__/.claude/projects/**/*.jsonl",
     "job"      = "claude-code-sessions",
   }]
 }
