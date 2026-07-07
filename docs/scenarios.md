@@ -207,6 +207,13 @@ PRFAQ より:
 
 総括: 検証手順自体は正しく回るが、「累計・全期間」を扱うこのシナリオは、実装のクエリより **SKILL.md のドキュメント側の抜け・誤り(リテンション未記載、7d/15dの誤記、クロスチェック条件の緩さ)** の方が実害が大きかった。この2点を修正済み。
 
+### 追記(2026-07-08): ダッシュボード本体も修正
+
+5シナリオを一通り検証した後、「ダッシュボードの追加・更新は不要か」を確認した。その過程で2点判明:
+
+- **修正不要と確認できたこと**: シナリオ1の Alloy 修正はサブエージェントの JSONL 全文(Loki `job="claude-code-sessions"`)にのみ影響し、トークン/コスト/ツール呼び出し頻度パネルが依拠する Prometheus メトリクス・OTel ログ側は元々サブエージェント分も正しく捕捉できていた(Prometheus 側は `query_source="subagent"`/`agent_name` タグ付きで親セッションの `session_id` に、OTel `tool_result` ログ側も同じ `session_id` の通常のイベントとして記録されていることを実測で確認)。ダッシュボードの過小カウントの心配は無かった。
+- **修正が必要だったこと**: 「セッション数」パネル(id: 4)が `claude_code_session_count_total` を使っており、本シナリオで確認した約10%の過小カウント(21 vs 23)をそのまま抱えていた。チャット側は SKILL.md 修正により token_usage ベースの値を報告するようになった一方、ダッシュボードだけ古い(低い)数値を表示し続ける不整合があったため、`docker/grafana-dashboard-claude-code-usage.json` のパネルクエリを `claude_code_token_usage_tokens_total` ベースに変更した。ファイルはコンテナへ bind mount されているが、Grafana のファイルプロビジョニングは自動リロードされなかったため `docker restart claude-otel-lgtm` で反映(データは永続化ボリュームのため無事)。再起動後、`get_dashboard_panel_queries` で新しいクエリが反映されていることを確認済み。
+
 ---
 
 ## 検証後の運用

@@ -64,7 +64,7 @@
       "id": 4,
       "type": "stat",
       "title": "セッション数(選択期間内に開始)",
-      "description": "increase() ではなく session_id の種類数で数える。理由は .claude/skills/claude-observability/SKILL.md 参照。",
+      "description": "increase() ではなく session_id の種類数で数える。claude_code_session_count_total ではなく token_usage_tokens_total ベースで数える(session_count_total は約10%程度過小カウントすることを確認済み。理由・実測値は docs/scenarios.md シナリオ5、.claude/skills/claude-observability/SKILL.md 参照)。",
       "gridPos": { "h": 4, "w": 6, "x": 18, "y": 0 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
@@ -72,7 +72,7 @@
         {
           "refId": "A",
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "count(count by (session_id) (last_over_time(claude_code_session_count_total[$__range])))",
+          "expr": "count(count by (session_id) (last_over_time(claude_code_token_usage_tokens_total[$__range])))",
           "instant": true,
           "range": false
         }
