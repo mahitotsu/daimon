@@ -123,7 +123,15 @@ SKILL.md の「Usage summary dashboard」節の手順どおり、`query_promethe
 
 ### 現状
 
-未検証。
+確認日: 2026-07-08、Claude Code v2.1.162。
+結果: 部分成功。
+
+- 「今日のコストは?」に相当する `sum(increase(claude_code_cost_usage_USD_total[24h]))` で合計 $9.85、モデル別内訳(`claude-sonnet-5`: $9.69、`claude-haiku-4-5-20251001`: $0.16)を取得し、同じ応答で `generate_deeplink`(`claude-code-usage-summary`、`now-24h`〜`now`)によるダッシュボードリンクも生成できた。要約+リンクの組み合わせは成立(基準1・2)。
+- `get_dashboard_panel_queries` で「コスト(選択期間の合計、USD)」パネルの PromQL が手動クエリと同一の式(`sum(increase(claude_code_cost_usage_USD_total[$__range]))`)であることを確認済み。同じ時間範囲なら値が一致する設計になっている(基準4、式レベルでの確認。実際のパネル描画は未確認)。
+- 「先週と比べて増えているか」の比較(基準3)は未達。直近7日分(`now-7d`〜`now`)は取得できたが、その1週間前(`now-14d`〜`now-7d`)は空振り(`no data`)。これは実装のバグではなく、このオブザーバビリティ基盤自体を数日前に構築したばかりで、14日分のデータがまだ蓄積されていないため。データが蓄積された後に再検証が必要。
+- 気づいた点 → 対応済み: 「今日」を `now-24h`〜`now` のローリング窓として扱っており、暦日(0時起点)ではなかった。PRFAQ の「今日のコスト」という自然文の期待と食い違うため、2026-07-08 に「今日 = ローカル深夜0時〜現在」のカレンダー日へ定義を変更した(`.claude/skills/claude-observability/SKILL.md` の「Usage summary dashboard」「Token / cost usage」節を修正)。`generate_deeplink` は Grafana ネイティブの `now/d` をそのまま渡せるが、`query_prometheus` の instant query は PromQL の duration リテラルが必要なため、ローカル深夜0時からの経過時間をエージェント側で計算して埋め込む方式にした。
+  - 再検証(2026-07-08 00:15 JST、Claude Code v2.1.162): `increase(claude_code_cost_usage_USD_total[15m])`(深夜0時から15分経過)で $1.15、`generate_deeplink` に `{"from": "now/d", "to": "now"}` を渡してダッシュボードリンクも生成できた。同時刻に計測したローリング24時間の値($9.85、シナリオ4検証の1回目)とは明確に異なる数値になっており、定義変更が実際に意味のある違いを生むことを確認できた。
+  - 「今週」「今月」は今回はスコープ外とし、ローリング窓(`now-7d`/`now-30d`)のまま据え置いた。同様のズレが指摘されたら改めて検討する。
 
 ---
 
