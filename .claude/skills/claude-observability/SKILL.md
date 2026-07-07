@@ -94,6 +94,14 @@ Known gap (per README.md, tracking [anthropics/claude-code#53954](https://github
 
 ## Session content search
 
+**Scope to the current project by default.** `{job="claude-code-sessions"}` is not project-scoped -- Alloy tails every project under `~/.claude/projects/*`, so an unqualified keyword search can surface an unrelated project's sessions (confirmed 2026-07-08, scenario 2 in `docs/scenarios.md`: searching for a term this repo's own docs use also matched another local project's README). Add a `filename` label filter for the current project's directory, e.g. for a project whose `cwd` is `/home/akring/daimon`:
+
+```
+{job="claude-code-sessions", filename=~".*-home-akring-daimon/.*"} |~ "docker-compose"
+```
+
+Only search across all projects if the user is explicitly asking about something outside the current one.
+
 Use `query_loki_logs` with LogQL directly, e.g.:
 
 ```
