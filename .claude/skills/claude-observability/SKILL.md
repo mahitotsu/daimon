@@ -1,16 +1,17 @@
 ---
 name: claude-observability
-description: Answer questions about local Claude Code usage -- token/cost usage, tool-call frequency, and session content search -- using the local otel-lgtm stack (Prometheus + Loki) set up by this repo. Use when asked things like "how many tokens did I use today", "what tools have I been calling most", "find the session where I discussed X", "what was I working on / doing before", or "recall the last session / before the restart". Prefer this over `git log` for recalling past conversation content -- commits only capture what got committed, not what was discussed.
+description: Answer questions about local Claude Code usage -- token/cost usage, tool-call frequency/duration, turn/trace structure, and session content search -- using the local otel-lgtm stack (Prometheus + Loki + Tempo) set up by this repo. Use when asked things like "how many tokens did I use today", "what tools have I been calling most", "why was that turn slow", "find the session where I discussed X", "what was I working on / doing before", or "recall the last session / before the restart". Prefer this over `git log` for recalling past conversation content -- commits only capture what got committed, not what was discussed.
 ---
 
 # Claude Code observability
 
 Data sources (see repo README.md for how they're populated):
 - **Prometheus** (`claude_code_*` metrics) -- token usage and cost, exported by Claude Code's OTel integration.
-- **Loki, `{service_name="claude-code"}`** -- Claude Code's own OTel *log* events (`claude_code.tool_result`, `tool_decision`, `user_prompt`, `assistant_response`, ...), exported directly via OTLP and ingested through Loki's native OTLP endpoint. `tool_name`, `success`, `duration_ms`, `tool_input_size_bytes`, `tool_result_size_bytes` etc. are present as structured metadata on every `tool_result`/`tool_decision` event unconditionally (no extra env var needed) -- use this for tool-call frequency/duration, not the script below (there is no script anymore). `user_prompt`/`assistant_response` bodies stay `"<REDACTED>"` unless `OTEL_LOG_USER_PROMPTS`/`OTEL_LOG_ASSISTANT_RESPONSES` are set, and even then are capped at 60KB -- don't rely on this stream for full conversation content.
+- **Tempo, `{resource.service.name="claude-code"}`** -- Claude Code's OTel *trace* spans (beta): `claude_code.interaction` (one turn) -> `claude_code.llm_request` / `claude_code.tool` (has `tool_use_id`) -> `claude_code.tool.execution` / `claude_code.tool.blocked_on_user`. Spans carry `tool_name`, `success`, `duration_ms` (plus the native `span:duration` intrinsic), `session.id`, `interaction.sequence`, `model`, `input_tokens`/`output_tokens`/`cache_read_tokens`/`cache_creation_tokens`, `ttft_ms`, `decision`, `error`, `attempt`, `tool_use_id`/`gen_ai.tool.call.id`. This is the preferred source for anything about call *structure*, *sequencing*, or *duration/error-rate aggregation* -- prefer it over hand-rolled Loki aggregation (see below). `user_prompt` on spans is redacted the same way as the Loki log stream, so it is not a content-search source.
+- **Loki, `{service_name="claude-code"}`** -- Claude Code's own OTel *log* events (`claude_code.tool_result`, `tool_decision`, `user_prompt`, `assistant_response`, ...), exported directly via OTLP and ingested through Loki's native OTLP endpoint. Now mainly useful for the two things Tempo spans don't carry: `tool_input_size_bytes`/`tool_result_size_bytes` (payload sizes), and cross-checking/backfilling if a trace turns out incomplete (see "Trace completeness" below). `user_prompt`/`assistant_response` bodies stay `"<REDACTED>"` unless `OTEL_LOG_USER_PROMPTS`/`OTEL_LOG_ASSISTANT_RESPONSES` are set, and even then are capped at 60KB -- don't rely on this stream for full conversation content.
 - **Loki, `{job="claude-code-sessions"}`** -- full session transcripts, tailed from `~/.claude/projects/*/*.jsonl` by Grafana Alloy. This is the only source for untruncated tool-call input/output and full conversation content.
 
-Query both through the official `grafana` MCP server (`query_prometheus`, `query_loki_logs`, `list_prometheus_metric_names`, etc.).
+Query all three through the official `grafana` MCP server (`query_prometheus`, `query_loki_logs`, `list_prometheus_metric_names`; for Tempo: `tempo_traceql-search`, `tempo_traceql-metrics-instant`/`-range`, `tempo_get-trace`, `tempo_get-attribute-names`, `tempo_docs-traceql`). The Tempo datasource's `uid` is `tempo` (confirmed 2026-07-07 via `list_datasources`).
 
 ## Usage summary dashboard (token/cost/active-time/session-count/tool-frequency)
 
@@ -46,17 +47,44 @@ count(count by (session_id) (last_over_time(claude_code_session_count_total[24h]
 
 Also treat this metric as an approximate lower bound, not authoritative: it's emitted once at session start with no repeat, so it's more fragile than the continuously-re-exported counters (e.g. to a startup race with the OTLP exporter). Confirmed 2026-07-06: a session with heavy, clearly-active `claude_code_token_usage_tokens_total` data had zero `claude_code_session_count_total` samples anywhere in the 7-day retention window. If a session count looks suspiciously low, cross-check with `count(count by (session_id) (last_over_time(claude_code_token_usage_tokens_total[<range>])))`, which is more reliable since it's tied to a continuously-repeated counter.
 
-## Tool-call frequency
+## Tool-call frequency and duration
 
-Use `query_loki_logs` against the `{service_name="claude-code"}` stream with a LogQL metric query (`queryType: instant`), filtering to `tool_result` events via structured metadata and grouping by `tool_name`:
+Use Tempo TraceQL metrics against `claude_code.tool` spans, not hand-rolled LogQL -- Tempo has `tool_name`/`success`/`duration` as native span fields (no `unwrap` needed), and supports percentiles LogQL can't do cleanly. Via `tempo_traceql-metrics-instant`/`-range` (`datasourceUid: "tempo"`):
+
+```
+{ resource.service.name = "claude-code" && name = "claude_code.tool" } | count_over_time() by (span.tool_name)
+{ resource.service.name = "claude-code" && span.tool_name != nil && span.success = "false" } | count_over_time() by (span.tool_name)
+{ resource.service.name = "claude-code" && span.tool_name != nil } | quantile_over_time(span:duration, .50, .95, .99) by (span.tool_name)
+{ resource.service.name = "claude-code" && span:status = error } | rate() by (span.tool_name)
+```
+
+Add `&& span.session.id = "<id>"` to scope any of these to one session (matches the `session_id` label used in Loki/Prometheus, so it's a direct cross-reference key -- confirmed 2026-07-07 by filtering a known session's `session.id` and getting the expected per-tool counts back). Use `tempo_get-attribute-names` if a query returns nothing -- attribute names can shift with Claude Code versions, same caveat as the Prometheus metric names above.
+
+**3-hour cap on TraceQL metrics queries**: confirmed 2026-07-07 -- `tempo_traceql-metrics-instant`/`-range` reject any `start`/`end` spanning more than 3h with `metrics query time range exceeds the maximum allowed duration of 3h0m0s`. `tempo_traceql-search` (non-metrics) doesn't have this cap. For "today"/"this week"-scale tool-frequency questions, either issue multiple 3h queries and sum client-side, or just use the Loki fallback below for that window instead -- don't retry a >3h metrics query with a different query shape, the range itself is the problem.
+
+Only fall back to Loki (`{service_name="claude-code"} | event_name="tool_result"`, `count_over_time`) for things Tempo spans don't carry: `tool_input_size_bytes`/`tool_result_size_bytes` (payload sizes). E.g.:
 
 ```
 sum by (tool_name) (count_over_time({service_name="claude-code"} | event_name="tool_result" [24h]))
 ```
 
-Note the pipeline filter (`| event_name="tool_result"`) rather than a stream-selector label (`{event_name="tool_result"}`) -- `event_name` is structured metadata, not an indexed label, so it only matches inside `| ...` filters. Swap `count_over_time(...)` grouping/range as needed, e.g. add `, session_id` to `by (...)` to break down per session, or filter `| success="false"` for failures, or aggregate `avg by (tool_name) (avg_over_time(... | unwrap duration_ms [24h]))` for latency. Session frequency breakdowns work the same way with `by (session_id, tool_name)`.
+(`event_name` is structured metadata, not an indexed label, so it must be a pipeline filter `| event_name=...`, not a stream selector.)
 
-This replaced a bundled JSON-parsing script that used to scan JSONL transcripts for `tool_use` blocks -- the OTel `tool_result` event is one flat event per tool call (unlike a JSONL message, which can embed several `tool_use` blocks in one line), so plain LogQL aggregation is sufficient and no custom parsing is needed anymore.
+This whole area used to run through a bundled JSON-parsing script (scanning JSONL `tool_use` blocks), then through Loki LogQL once the OTel `tool_result` log event shipped as one flat event per call. Tempo traces are now the more native fit for frequency/duration/error-rate questions specifically, since they carry duration and status as first-class span fields rather than an attribute needing `unwrap`; don't reintroduce custom parsing or prefer LogQL here when TraceQL covers it directly.
+
+## Turn/interaction structure (waterfall, "why was this slow", retries)
+
+For questions about a specific turn's internal structure -- why it was slow, whether a tool was retried, error propagation from a tool up to the interaction -- reconstruct the waterfall from Tempo instead of manually cross-referencing Loki/JSONL timestamps:
+
+1. Find the trace: `tempo_traceql-search` with `{ resource.service.name = "claude-code" && span.session.id = "<id>" }` (add `&& span.interaction.sequence = <n>` if you know which turn, or narrow the time range) against `datasourceUid: "tempo"`.
+2. Pull the full span tree: `tempo_get-trace` with that `trace_id`. This gives the actual parent/child waterfall (`interaction` -> `llm_request`/`tool` -> `tool.execution`/`tool.blocked_on_user`) with real durations and parent-child timing, rather than something reconstructed by hand from flat log lines.
+3. `attempt` on a span indicates a retried call; `span:status = error` / the `error` attribute marks failures; `tool_use_id`/`gen_ai.tool.call.id` is the same ID used by the JSONL `tool_result`/`tool_decision` entries, so only cross into Loki/JSONL if you need the actual prompt/tool-argument content behind a given span (Tempo redacts that the same way the Loki log stream does).
+
+### Trace completeness ("root span not yet received")
+
+A `tempo_traceql-search` result can show `rootServiceName: "<root span not yet received>"` for a trace. Confirmed 2026-07-07: this is normal for a trace whose `claude_code.interaction` root span hasn't closed yet (it only closes when the turn finishes), not a data-loss bug -- it's almost always the turn currently in progress. If it persists for a turn that has clearly finished, that's the actual anomaly worth investigating (check Loki `tool_result` events for the same window as a cross-check before assuming Tempo dropped data).
+
+Known gap (per README.md, tracking [anthropics/claude-code#53954](https://github.com/anthropics/claude-code/issues/53954), closed as not planned): under the Agent SDK's `query()` / ACP streaming-json path, `claude_code.interaction`/`tool` spans are missing entirely and only `llm_request` spans show up. Not expected to affect normal CLI/VS Code usage, but worth ruling out if a session's trace looks unusually sparse.
 
 ## Session content search
 
