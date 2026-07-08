@@ -39,15 +39,15 @@ Claude Code の利用状況(トークン/コスト・ツール呼び出し傾向
 
 ## 検証
 
-自動テストスイートはない(シェルスクリプト+設定テンプレート+Skill であり、アプリケーションコードではないため)。変更を検証する場合は README.md の「検証手順」セクションを頭から実行すること(otel-lgtm コンテナの起動確認、Loki/Prometheus/Tempo のヘルスチェック、Alloy の systemd unit 確認、JSONL tail・OTel メトリクス/ログ・Tempo トレースの3経路でテストデータが実際に届くことの確認、ダッシュボードのプロビジョニング確認まで一通り含む)。
+アプリケーションコードは無い(シェルスクリプト+設定テンプレート+Skill)ため、伝統的なユニットテストは無い。変更を検証する場合は README.md の「検証手順」セクションを頭から実行すること(otel-lgtm コンテナの起動確認、Loki/Prometheus/Tempo のヘルスチェック、Alloy の systemd unit 確認、JSONL tail・OTel メトリクス/ログ・Tempo トレースの3経路でテストデータが実際に届くことの確認、ダッシュボードのプロビジョニング確認まで一通り含む)。
 
-上記はインフラ疎通レベルの確認であり、`docs/scenarios.md` はその一段上——PRFAQ(`docs/prfaq.md`)が約束した5つの利用シナリオが実際に自然言語での問いかけとして機能するかを検証する、**回帰チェックリスト**として保持している(README.md には出さず、この内部ドキュメントのみで管理する)。以下のタイミングで一通り問いかけ直し、各シナリオの「現状」節を確認日・バージョン・結果で更新すること:
+上記はインフラ疎通レベルの確認であり、`test/`はその一段上——site/index.html(想定利用シーン/5つの価値セクション)が約束した5つの利用シナリオが実際に自然言語での問いかけとして機能するかを検証する回帰テストである(README.md には出さず、この内部ディレクトリのみで管理する)。各シナリオの存在意義・確認観点は`test/SPEC.md`、実装(問いかけ文・成功基準・判定ロジック)は`test/scenario-N.sh`自身、実行は`test/run-all.sh`(`claude -p --model sonnet`で実行→`claude -p --model haiku --json-schema`で判定→`~/.local/share/claude-observability/regression-results.jsonl`に記録)。実APIコールを伴うため無人・高頻度実行は想定しておらず、以下のタイミングで手動実行すること:
 
 - `.claude/skills/claude-observability/SKILL.md`、ダッシュボード定義(`docker/grafana-dashboard-claude-code-usage.json`)、Alloy 設定(`alloy/config.alloy.template`)のいずれかを変更した直後
 - Claude Code のバージョンが上がった直後(メトリクス名・span 属性名・toolUseResult の形が変わりうるため)
 - 何かが「前と違う気がする」と感じたとき
 
-2026-07-08 の初回検証では、この回帰チェック自体が Alloy の非再帰グロブによるサブエージェント transcript 欠落という実装バグを発見している(詳細は `docs/scenarios.md` シナリオ1)。「動いているはず」で済ませず、実際に問いかけて確認する価値がある。
+2026-07-08 の初回検証(自動化前、対話セッションでの手動実施)では、この確認自体が Alloy の非再帰グロブによるサブエージェント transcript 欠落という実装バグを発見している(修正は`alloy/config.alloy.template`に反映済み)。「動いているはず」で済ませず、実際に問いかけて確認する価値がある。
 
 ## 言語
 
