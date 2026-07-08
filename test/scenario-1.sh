@@ -31,6 +31,6 @@ RUBRIC="- 今のセッションとは別の実行単位(サブエージェント
 - 応答が生ログの引用の羅列ではなく、要約された自然言語になっていること"
 
 response="$(run_prompt "$PROMPT" sonnet)"
-verdict="$(judge "$response" "$RUBRIC")"
+verdict="$(judge "$PROMPT" "$response" "$RUBRIC")"
 log_result "$SCENARIO_ID" "$verdict"
 echo "$verdict" | jq .

@@ -17,6 +17,6 @@ RUBRIC="- セッション数が、claude_code_session_count_totalへのincrease(
 - Grafanaダッシュボードへのリンクが含まれていること"
 
 response="$(run_prompt "$PROMPT" sonnet)"
-verdict="$(judge "$response" "$RUBRIC")"
+verdict="$(judge "$PROMPT" "$response" "$RUBRIC")"
 log_result "$SCENARIO_ID" "$verdict"
 echo "$verdict" | jq .

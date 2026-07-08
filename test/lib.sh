@@ -127,25 +127,35 @@ run_prompt_persisted() {
   echo "$out" | jq -r '.result'
 }
 
-# judge <response> <rubric-text> -- grades response against a rubric using
-# Haiku (a different checkpoint than the Sonnet call that produced the
-# response). This is a partial, not complete, mitigation of LLM-as-judge
-# self-preference bias: research on the topic (arXiv:2410.21819) finds the
-# bias tracks familiarity/perplexity with a judge's own generation style,
-# which is reduced but not eliminated by a different checkpoint in the same
-# model family. A genuinely independent judge would need a different
+# judge <question> <response> <rubric-text> -- grades response against a
+# rubric using Haiku (a different checkpoint than the Sonnet call that
+# produced the response). This is a partial, not complete, mitigation of
+# LLM-as-judge self-preference bias: research on the topic (arXiv:2410.21819)
+# finds the bias tracks familiarity/perplexity with a judge's own generation
+# style, which is reduced but not eliminated by a different checkpoint in the
+# same model family. A genuinely independent judge would need a different
 # vendor, which isn't practical inside Claude Code -- see conversation.
 # Uses --json-schema for a structured, parseable verdict rather than
 # free-text (confirmed 2026-07-08: schema-validated fields land in
 # `.structured_output`; `.result` is empty in that mode).
+#
+# QUESTION is passed alongside RESPONSE (confirmed 2026-07-09: without it,
+# criteria like "found this without being given a session ID/date hint"
+# were unverifiable to the judge, since it could see the answer but not
+# whether the question itself contained hints -- this showed up as
+# consistent PARTIAL verdicts on that specific criterion across scenarios
+# 1 and 2).
 judge() {
-  local response="$1" rubric="$2"
+  local question="$1" response="$2" rubric="$3"
   local schema='{"type":"object","properties":{"verdict":{"type":"string","enum":["PASS","FAIL","PARTIAL"]},"criteria":{"type":"array","items":{"type":"object","properties":{"criterion":{"type":"string"},"met":{"type":"boolean"},"reason":{"type":"string"}},"required":["criterion","met","reason"]}},"summary":{"type":"string"}},"required":["verdict","criteria","summary"]}'
   local prompt
-  prompt="Grade the RESPONSE strictly against each item in CRITERIA. Do not be lenient just because the response reads fluently -- check each criterion independently and cite what in the response satisfies or fails it. If a criterion can't be evaluated because of missing data (e.g. not enough history yet), mark it not met and say why in the reason, don't skip it.
+  prompt="Grade the RESPONSE strictly against each item in CRITERIA, in light of the QUESTION it was answering. Do not be lenient just because the response reads fluently -- check each criterion independently and cite what in the response satisfies or fails it. If a criterion can't be evaluated because of missing data (e.g. not enough history yet), mark it not met and say why in the reason, don't skip it.
 
 CRITERIA:
 $rubric
+
+QUESTION:
+$question
 
 RESPONSE:
 $response"
@@ -157,7 +167,7 @@ $response"
 log_result() {
   local scenario_id="$1" verdict_json="$2"
   mkdir -p "$(dirname "$RESULTS_LOG")"
-  jq -n --arg id "$scenario_id" --arg date "$(date -Iseconds)" \
+  jq -nc --arg id "$scenario_id" --arg date "$(date -Iseconds)" \
     --arg version "$(claude --version 2>/dev/null | awk '{print $1}')" \
     --argjson verdict "$verdict_json" \
     '{scenario: $id, date: $date, claude_code_version: $version, verdict: $verdict.verdict, criteria: $verdict.criteria, summary: $verdict.summary}' \

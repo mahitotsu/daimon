@@ -20,18 +20,29 @@ Claude Code の利用状況(トークン/コスト・ツール呼び出し傾向
 
 ## 変更時に踏まえるべき設計上の制約
 
-いずれも意図的な決定であり、一見冗長・非効率に見えても安易に「簡略化」しないこと。理由:
+いずれも意図的な決定であり、一見冗長・非効率に見えても安易に「簡略化」しないこと。技術的な検証結果(挙動確認)は Claude Code のバージョンに依存するため、各項目に確認日・バージョンを添えて記録している。挙動が変わっていないか疑わしい場合はまずこのファイルの該当箇所を確認すること。テーマ別に分けている:
+
+### ホスティング/デプロイの選択
 
 - **Alloy はホストネイティブ実行、Docker 化しない。** バインドマウント越しのファイル変更通知は仮想化レイヤーを挟むと遅延・欠落するリスクがあるため。
 - **Alloy は apt パッケージではなく公式スタンドアロンバイナリを使う。** apt 版は専用の `alloy` システムユーザーで動く system-level systemd service になり、`~/.claude/projects` の読み取り権限を持たない。
 - **otel-lgtm は Docker の `restart: unless-stopped` のみに依存する。** Alloy 側のような独自の `systemd --user` ラッパーは不要(Docker の再起動ポリシーで十分)。
-- **自作 MCP サーバーは持たない。** 汎用的な Prometheus/Loki/Tempo クエリは公式 `grafana-mcp` に任せ、ドメイン固有ロジック(既知のメトリクス名/span 属性名、Loki 2ストリーム・Tempo・Prometheus の使い分けなど)だけを Skill 側に持たせる設計。ツール呼び出し頻度集計用の専用 Python スクリプトは、まず OTel `tool_result` イベント(1呼び出し1フラットイベント)による汎用 LogQL 集計で置き換えて撤去し、現在はさらに Tempo の trace export(下記)が有効になったことで、頻度・所要時間・成否集計自体を TraceQL メトリクスに寄せている(`duration`/`success` が span のネイティブ属性で `unwrap` 不要、パーセンタイルも取れるため)。Loki はペイロードサイズ(`tool_input_size_bytes`/`tool_result_size_bytes`)のバックストップ用途のみに縮退済み。復活・逆戻りさせる前に本当に必要か疑うこと。
-- **トレース(ベータ)を有効化し、呼び出し系列・所要時間の集計は Tempo TraceQL に寄せる。** `CLAUDE_CODE_ENHANCED_TELEMETRY_BETA=1` + `OTEL_TRACES_EXPORTER=otlp` で `claude_code.interaction`(ターン)→ `llm_request`/`tool` → `tool.execution`/`tool.blocked_on_user` の span 階層が Tempo に届く。内容(プロンプト本文・ツール引数)は既定でリダクトされ Tempo 側にも残らないため、内容検索は引き続き JSONL tail(Loki `{job="claude-code-sessions"}`)の役割。既知の制約: (1) `tempo_traceql-metrics-instant`/`-range` は `start`/`end` が3時間を超えるクエリを拒否する(`tempo_traceql-search` にはこの上限は無い)、(2) `rootServiceName: "<root span not yet received>"` は `claude_code.interaction` がまだ閉じていない(ターン進行中)だけの正常状態であり、データ欠損ではない、(3) Agent SDK の `query()`/ACP streaming-json 経由では `interaction`/`tool` span が欠落し `llm_request` のみになる既知の不具合がある([anthropics/claude-code#53954](https://github.com/anthropics/claude-code/issues/53954)、Closed as not planned)が通常の CLI/VS Code 拡張機能の経路には影響しないと見られる。2026-07-07、v2.1.202 で `claude -p`(標準 CLI)と VS Code 拡張機能のチャットパネル両方から span 到達を実機確認済み(公式ドキュメントは同じく [Monitoring - Claude Code Docs](https://code.claude.com/docs/en/monitoring-usage))。詳細は `.claude/skills/claude-observability/SKILL.md` 参照。
+
+### テレメトリ設定
+
 - **`merge-settings-env.sh` はプレーンな `OTEL_*` と `ANT_` 接頭辞付きの `ANT_OTEL_*` の両方を設定する。** 標準 CLI(ターミナル起動)はプレーン名のみ、VS Code 拡張機能の組み込みバイナリは `ANT_OTEL_*` のみを読む(拡張のネイティブバイナリを `strings` で確認済みの未文書化挙動)。片方を削ると、その起動経路だけメトリクスが来なくなる。
 - **`docker/otelcol-metrics-overlay.yaml` の `deltatocumulative` プロセッサは必須。** Claude Code は既定で Delta temporality のメトリクスを送出するが、Prometheus は Delta を拒否する(しかも otel-lgtm は Prometheus 自身のログを抑制するため、この拒否は何も設定しないと完全にサイレント)。送信側で `cumulative` を強制する方法もあるが VS Code 拡張の組み込みバイナリにはその変数の `ANT_` 版が存在しないため使えない。よって受信側(Collector)での変換が唯一の解。
+- **トレース(ベータ)を有効化し、呼び出し系列・所要時間の集計は Tempo TraceQL に寄せる。** `CLAUDE_CODE_ENHANCED_TELEMETRY_BETA=1` + `OTEL_TRACES_EXPORTER=otlp` で `claude_code.interaction`(ターン)→ `llm_request`/`tool` → `tool.execution`/`tool.blocked_on_user` の span 階層が Tempo に届く。内容(プロンプト本文・ツール引数)は既定でリダクトされ Tempo 側にも残らないため、内容検索は引き続き JSONL tail(Loki `{job="claude-code-sessions"}`)の役割。既知の制約: (1) `tempo_traceql-metrics-instant`/`-range` は `start`/`end` が3時間を超えるクエリを拒否する(`tempo_traceql-search` にはこの上限は無い)、(2) `rootServiceName: "<root span not yet received>"` は `claude_code.interaction` がまだ閉じていない(ターン進行中)だけの正常状態であり、データ欠損ではない、(3) Agent SDK の `query()`/ACP streaming-json 経由では `interaction`/`tool` span が欠落し `llm_request` のみになる既知の不具合がある([anthropics/claude-code#53954](https://github.com/anthropics/claude-code/issues/53954)、Closed as not planned)が通常の CLI/VS Code 拡張機能の経路には影響しないと見られる。2026-07-07、v2.1.202 で `claude -p`(標準 CLI)と VS Code 拡張機能のチャットパネル両方から span 到達を実機確認済み(公式ドキュメントは同じく [Monitoring - Claude Code Docs](https://code.claude.com/docs/en/monitoring-usage))。詳細は `.claude/skills/claude-observability/SKILL.md` 参照。
+
+### アーキテクチャ方針
+
+- **自作 MCP サーバーは持たない。** 汎用的な Prometheus/Loki/Tempo クエリは公式 `grafana-mcp` に任せ、ドメイン固有ロジック(既知のメトリクス名/span 属性名、Loki 2ストリーム・Tempo・Prometheus の使い分けなど)だけを Skill 側に持たせる設計。ツール呼び出し頻度集計用の専用 Python スクリプトは、まず OTel `tool_result` イベント(1呼び出し1フラットイベント)による汎用 LogQL 集計で置き換えて撤去し、現在はさらに Tempo の trace export(上記)が有効になったことで、頻度・所要時間・成否集計自体を TraceQL メトリクスに寄せている(`duration`/`success` が span のネイティブ属性で `unwrap` 不要、パーセンタイルも取れるため)。Loki はペイロードサイズ(`tool_input_size_bytes`/`tool_result_size_bytes`)のバックストップ用途のみに縮退済み。復活・逆戻りさせる前に本当に必要か疑うこと。
 - **JSONL tail(`{job="claude-code-sessions"}`)を OTel ログ(`{service_name="claude-code"}`)で代替しない。** OTel 側の `tool_result`/`user_prompt`/`assistant_response` はどのゲート変数を有効にしても設計上トランケートされる(`tool.output` は60KB/属性、プロンプト/レスポンスも上限あり、`tool_result` は既定でサイズしか持たない)。会話全文・ツール入出力の全文検索が必要な用途では JSONL tail が唯一の情報源。公式ドキュメント([Monitoring - Claude Code Docs](https://code.claude.com/docs/en/monitoring-usage)、2026-07-06 に v2.1.162 で確認)によれば `claude_code.tool_result`/`tool_decision` イベントの `tool_name`/`success`/`duration_ms`/`tool_input_size_bytes`/`tool_result_size_bytes` は追加ゲートなしで無条件付与される一方、`OTEL_LOG_TOOL_DETAILS=1` で得られる `tool_input` 等は個別値512文字・全体約4KBでトランケートされる(本ツールはこのゲートを有効にしていない)。otel-lgtm は追加設定なしで OTLP ログを Loki のネイティブエンドポイントへ転送する(2026-07-06、v2.1.201・otel-lgtm `latest` で実機確認)。
 
-これらの技術的な検証結果(挙動確認)は Claude Code のバージョンに依存するため、上記の各項目に確認日・バージョンを添えて記録している。挙動が変わっていないか疑わしい場合はまずこのファイルの該当箇所を確認すること。
+### ダッシュボードの保守
+
+- **ダッシュボードJSON(`docker/grafana-dashboard-claude-code-usage.json`)を編集する場合、Grafanaのファイルベースプロビジョニングはホットリロードしない。** `docker/grafana-dashboards-provisioning.yaml`に`updateIntervalSeconds`の上書きが無く、バインドマウント済みJSONを編集して30秒待っても反映されないことを確認済み(2026-07-08)。`docker restart claude-otel-lgtm`で反映させ、`docker inspect --format='{{.State.Health.Status}}' claude-otel-lgtm`が`healthy`になるのを待つこと(データは永続化ボリュームなので消えない)。
+- **GrafanaのTempoパネルのクエリスキーマは公開ドキュメントに見当たらない。** 確認するには実行中コンテナから`dataquery.gen.ts`を直接読む(`docker exec claude-otel-lgtm cat /otel-lgtm/grafana/public/app/plugins/datasource/tempo/dataquery.gen.ts`、Tempoはコアバンドル済みデータソースで別プラグインディレクトリを持たないため)。要点:search/metricsどちらのクエリも`"queryType": "traceql"`で、metricsクエリは`query`に集計関数(`quantile_over_time`/`count_over_time`/`rate`等)を含めた上で`"metricsQueryType": "instant"`(または`"range"`+`"step"`)を追加するだけで区別される。`filters: []`はスキーマ上必須(未使用でも省略不可)。search型は追加で`limit`と`tableType`(`"traces"`でGrafana組み込みのトレース一覧テーブル用フィールドセット+クリックスルーリンクが有効になる)を取る。新しいTempoパネルを書く前に`grafana_api_request`経由で`/api/ds/query`に対して実際のクエリボディを検証すること——スキーマを推測すると詳細のない汎用的な`500 "An error occurred within the plugin"`が返るだけ。
 
 ## 既知のツール上の落とし穴(grafana MCP)
 
